@@ -1,10 +1,17 @@
 {
-  "name": "ai-text-summarizer",
+  "name": "ai-text-summariser",
   "version": "1.0.0",
+  "description": "CLI tool to summarise unstructured text using GPT",
   "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node -r dotenv/config index.js",
+    "start:web": "node -r dotenv/config server.js"
+  },
   "dependencies": {
-    "express": "^4.18.2",
-    "openai": "^4.0.0",
-    "dotenv": "^16.0.0"
+    "commander": "^12.0.0",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "openai": "^4.0.0"
   }
 }
