@@ -1,51 +1,71 @@
-import fetch from "node-fetch";
+import fs from "fs";
+import dotenv from "dotenv";
+import OpenAI from "openai";
 
-const API_KEY = "YOUR_API_KEY_HERE";
+dotenv.config();
 
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Get input (file or stdin)
+async function getInput() {
+  const filePath = process.argv[2];
+
+  if (filePath) {
+    return fs.readFileSync(filePath, "utf-8");
+  }
+
+  return new Promise((resolve) => {
+    let data = "";
+    process.stdin.on("data", chunk => data += chunk);
+    process.stdin.on("end", () => resolve(data));
+  });
+}
+
+// Call AI
 async function summarize(text) {
   if (!text || text.trim() === "") {
-    console.log("Error: Empty input");
-    return;
+    throw new Error("Input text is empty");
   }
 
   const prompt = `
-Return JSON:
+Return ONLY JSON in this format:
 {
-  "summary": "",
-  "key_points": ["", "", ""],
-  "sentiment": ""
+  "summary": "one sentence summary",
+  "key_points": ["point1", "point2", "point3"],
+  "sentiment": "positive | neutral | negative"
 }
 
 Text:
 ${text}
 `;
 
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
 
-    const data = await response.json();
-
-    console.log("\n===== RESULT =====\n");
-    console.log(data.choices[0].message.content);
-
-  } catch (error) {
-    console.log("API Error:", error.message);
-  }
+  return response.choices[0].message.content;
 }
 
-// Example input (since no terminal on phone)
-const inputText = `
-The product is very useful and saves a lot of time. Many users are happy with its performance, but some think it is expensive.
-`;
+// Run
+(async () => {
+  try {
+    const inputText = await getInput();
+    const result = await summarize(inputText);
 
-summarize(inputText);
+    console.log("\n===== RESULT =====\n");
+
+    // Pretty print
+    const parsed = JSON.parse(result);
+
+    console.log("Summary:", parsed.summary);
+    console.log("\nKey Points:");
+    parsed.key_points.forEach((p, i) => console.log(`${i + 1}. ${p}`));
+    console.log("\nSentiment:", parsed.sentiment);
+
+  } catch (error) {
+    console.error("Error:", error.message);
+  }
+})();
