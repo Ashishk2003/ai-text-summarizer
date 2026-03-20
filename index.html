@@ -1,40 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>AI Text Summarizer</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text Analyser</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0e0e; --surface: #161616; --border: #2a2a2a;
+      --accent: #c8f135; --text: #e8e8e8; --muted: #666;
+      --mono: 'Syne Mono', monospace; --sans: 'Syne', sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column; }
+    header { border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; display: flex; align-items: baseline; gap: 1rem; }
+    header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; }
+    header span { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+    .accent-dot { display: inline-block; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; margin-right: 0.5rem; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; }
+    @media(max-width:768px){main{grid-template-columns:1fr}}
+    .panel { padding: 2rem; border-right: 1px solid var(--border); }
+    .panel:last-child { border-right: none; }
+    .panel-label { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 1.2rem; }
+    textarea { width: 100%; height: 280px; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 0.82rem; line-height: 1.7; padding: 1rem; resize: vertical; outline: none; transition: border-color 0.2s; }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+    .controls { display: flex; gap: 0.75rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
+    button { font-family: var(--sans); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.65rem 1.4rem; border: none; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: #0e0e0e; }
+    .btn-primary:hover { background: #d9ff4a; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+    .char-count { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin-left: auto; }
+    .schema-toggle { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.2rem; }
+    .schema-toggle summary { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; user-select: none; list-style: none; display: flex; align-items: center; gap: 0.5rem; }
+    .schema-toggle summary::before { content: '▶'; font-size: 0.5rem; transition: transform 0.2s; }
+    .schema-toggle[open] summary::before { transform: rotate(90deg); }
+    .schema-toggle textarea { margin-top: 0.8rem; height: 140px; font-size: 0.75rem; }
+    .result-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; gap: 0.5rem; color: var(--muted); }
+    .result-empty .big { font-size: 3rem; opacity: 0.2; }
+    .result-empty p { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; }
+    .result-card { display: none; flex-direction: column; gap: 1.5rem; animation: fadeUp 0.4s ease forwards; }
+    .result-card.visible { display: flex; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .block-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    .summary-text { font-size: 1rem; font-weight: 700; line-height: 1.5; }
+    .key-points { display: flex; flex-direction: column; gap: 0.6rem; }
+    .key-point { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .key-point .num { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); padding-top: 0.1rem; flex-shrink: 0; }
+    .key-point .text { font-size: 0.88rem; line-height: 1.55; color: #ccc; }
+    .badges { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .badge { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--border); }
+    .badge.positive { border-color: #4caf50; color: #4caf50; }
+    .badge.neutral  { border-color: #ff9800; color: #ff9800; }
+    .badge.negative { border-color: #f44336; color: #f44336; }
+    .badge.high     { border-color: var(--accent); color: var(--accent); }
+    .badge.medium   { border-color: #ff9800; color: #ff9800; }
+    .badge.low      { border-color: var(--muted); color: var(--muted); }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .extra-fields { display: flex; flex-direction: column; gap: 0.5rem; }
+    .extra-row { display: flex; gap: 1rem; font-family: var(--mono); font-size: 0.75rem; }
+    .extra-row .key { color: var(--muted); min-width: 120px; }
+    .usage-bar { margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+    .loader { display: none; align-items: center; gap: 0.5rem; font-family: var(--mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.1em; margin-top: 1rem; }
+    .loader.active { display: flex; }
+    .loader-dots span { display: inline-block; width: 4px; height: 4px; background: var(--accent); border-radius: 50%; animation: blink 1.2s ease-in-out infinite; }
+    .loader-dots span:nth-child(2){animation-delay:0.2s}
+    .loader-dots span:nth-child(3){animation-delay:0.4s}
+    @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+    .error-msg { display: none; font-family: var(--mono); font-size: 0.78rem; color: #f44336; background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.3); padding: 0.8rem 1rem; margin-top: 0.75rem; }
+    .error-msg.visible { display: block; }
+  </style>
 </head>
 <body>
 
-<h2>AI Text Summarizer</h2>
+<header>
+  <h1><span class="accent-dot"></span>Text Analyser</h1>
+  <span>gpt-4o-mini · structured output</span>
+</header>
 
-<textarea id="inputText" rows="6" cols="50"></textarea><br><br>
+<main>
+  <div class="panel">
+    <div class="panel-label">01 — Input</div>
+    <textarea id="inputText" placeholder="Paste your text here…"></textarea>
+    <div class="controls">
+      <button class="btn-primary" id="analyseBtn" onclick="analyse()">Analyse</button>
+      <button class="btn-ghost" onclick="clearAll()">Clear</button>
+      <span class="char-count" id="charCount">0 chars</span>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="loader" id="loader">
+      <span>Analysing</span>
+      <span class="loader-dots"><span></span><span></span><span></span></span>
+    </div>
+    <details class="schema-toggle">
+      <summary>Custom schema (optional)</summary>
+      <textarea id="schemaInput" placeholder='{"summary": "...", "key_points": [...], "sentiment": "...", "confidence": "...", "tone": "..."}'></textarea>
+    </details>
+  </div>
 
-<button onclick="summarizeText()">Summarize</button>
-
-<pre id="output"></pre>
+  <div class="panel">
+    <div class="panel-label">02 — Result</div>
+    <div class="result-empty" id="emptyState">
+      <div class="big">◎</div>
+      <p>Awaiting analysis</p>
+    </div>
+    <div class="result-card" id="resultCard">
+      <div>
+        <div class="block-label">Summary</div>
+        <div class="summary-text" id="summaryText"></div>
+      </div>
+      <div>
+        <div class="block-label">Key Points</div>
+        <div class="key-points" id="keyPoints"></div>
+      </div>
+      <div>
+        <div class="block-label">Sentiment &amp; Confidence</div>
+        <div class="badges" id="badges"></div>
+      </div>
+      <div id="extraBlock" style="display:none">
+        <div class="block-label">Extra Fields</div>
+        <div class="extra-fields" id="extraFields"></div>
+      </div>
+      <div class="usage-bar" id="usageBar"></div>
+    </div>
+  </div>
+</main>
 
 <script>
-async function summarizeText() {
-  const text = document.getElementById("inputText").value;
-
-  if (!text.trim()) {
-    alert("Enter text");
-    return;
-  }
-
-  const res = await fetch("/summarize", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ text })
+  const textarea = document.getElementById('inputText');
+  textarea.addEventListener('input', () => {
+    document.getElementById('charCount').textContent = textarea.value.length + ' chars';
   });
 
-  const data = await res.json();
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
 
-  document.getElementById("output").innerText = data.result;
-}
+  function clearError() {
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+
+  function setLoading(on) {
+    document.getElementById('loader').classList.toggle('active', on);
+    document.getElementById('analyseBtn').disabled = on;
+  }
+
+  function clearAll() {
+    textarea.value = '';
+    document.getElementById('charCount').textContent = '0 chars';
+    clearError();
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('resultCard').classList.remove('visible');
+  }
+
+  async function analyse() {
+    clearError();
+    const text = textarea.value.trim();
+    if (!text) { showError('Please enter some text first.'); return; }
+
+    let schema = null;
+    const schemaRaw = document.getElementById('schemaInput').value.trim();
+    if (schemaRaw) {
+      try { schema = JSON.parse(schemaRaw); }
+      catch { showError('Custom schema is not valid JSON.'); return; }
+    }
+
+    setLoading(true);
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultCard').classList.remove('visible');
+
+    try {
+      const res = await fetch('/analyse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, schema }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || 'Something went wrong.'); return; }
+      renderResult(data.result, data.usage);
+    } catch (e) {
+      showError('Could not reach the server. Is it running?');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResult(result, usage) {
+    document.getElementById('summaryText').textContent = result.summary || '—';
+
+    const kp = document.getElementById('keyPoints');
+    kp.innerHTML = '';
+    (result.key_points || []).forEach((pt, i) => {
+      kp.innerHTML += '<div class="key-point"><span class="num">0' + (i+1) + '</span><span class="text">' + pt + '</span></div>';
+    });
+
+    const badges = document.getElementById('badges');
+    badges.innerHTML = '';
+    if (result.sentiment) badges.innerHTML += '<span class="badge ' + result.sentiment + '"><span class="dot"></span>' + result.sentiment + '</span>';
+    if (result.confidence) badges.innerHTML += '<span class="badge ' + result.confidence + '"><span class="dot"></span>' + result.confidence + ' confidence</span>';
+
+    const known = new Set(['summary','key_points','sentiment','confidence']);
+    const extras = Object.keys(result).filter(k => !known.has(k));
+    const extraBlock = document.getElementById('extraBlock');
+    const extraFields = document.getElementById('extraFields');
+    if (extras.length) {
+      extraFields.innerHTML = extras.map(k => '<div class="extra-row"><span class="key">' + k + '</span><span class="val">' + JSON.stringify(result[k]) + '</span></div>').join('');
+      extraBlock.style.display = 'block';
+    } else {
+      extraBlock.style.display = 'none';
+    }
+
+    if (usage) {
+      document.getElementById('usageBar').textContent = 'tokens — prompt: ' + usage.prompt_tokens + ' · completion: ' + usage.completion_tokens + ' · total: ' + usage.total_tokens;
+    }
+
+    document.getElementById('resultCard').classList.add('visible');
+  }
 </script>
-
 </body>
 </html>
